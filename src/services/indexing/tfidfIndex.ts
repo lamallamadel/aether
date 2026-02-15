@@ -4,7 +4,7 @@ import type { IndexedDocument, SearchResult } from './types'
 
 export type TfIdfIndex = {
   docs: IndexedDocument[]
-  search: (query: string, topK?: number) => SearchResult[]
+  search: (query: string, topK?: number, options?: { matchCase?: boolean; matchWholeWord?: boolean }) => SearchResult[]
 }
 
 const dot = (a: Map<string, number>, b: Map<string, number>) => {
@@ -15,8 +15,6 @@ const dot = (a: Map<string, number>, b: Map<string, number>) => {
   }
   return s
 }
-
-const norm = (a: Map<string, number>) => Math.sqrt(dot(a, a))
 
 export function buildTfIdfIndex(files: Array<{ fileId: string; content: string }>, maxLinesPerChunk = 50): TfIdfIndex {
   const docs: IndexedDocument[] = []
@@ -38,25 +36,47 @@ export function buildTfIdfIndex(files: Array<{ fileId: string; content: string }
     return v
   })
 
-  const docNorms = docVecs.map((v) => norm(v) || 1)
-
-  const search = (query: string, topK = 8): SearchResult[] => {
+  const search = (query: string, topK = 8, options?: { matchCase?: boolean; matchWholeWord?: boolean }): SearchResult[] => {
     const qTokens = tokenize(query)
-    const qTf = termFrequency(qTokens)
+
+    // Expansion for Partial Match: Include all vocabulary terms that contain the query token
+    // This allows "log" to match "logger" in TF-IDF phase
+    let effectiveTokens = qTokens
+    if (!options?.matchWholeWord) {
+      const expanded = new Set(qTokens)
+      for (const t of qTokens) {
+        for (const term of df.keys()) {
+          if (term.includes(t)) expanded.add(term)
+        }
+      }
+      effectiveTokens = Array.from(expanded)
+    }
+
+    const qTf = termFrequency(effectiveTokens)
     const qVec = new Map<string, number>()
     for (const [term, freq] of qTf) {
       const idf = Math.log((N + 1) / ((df.get(term) ?? 0) + 1)) + 1
       qVec.set(term, freq * idf)
     }
-    const qNorm = norm(qVec) || 1
 
-    const scored: SearchResult[] = docs.map((doc, i) => {
-      const score = dot(qVec, docVecs[i]) / (qNorm * docNorms[i])
+    let scored: SearchResult[] = docs.map((doc, i) => {
+      const score = dot(qVec, docVecs[i])
       return { doc, score }
     })
 
+    scored = scored.filter((r) => r.score > 0)
+
+    // Exact Match Filtering
+    if (options?.matchCase || options?.matchWholeWord) {
+      const flags = options.matchCase ? 'g' : 'gi'
+      const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const pattern = options.matchWholeWord ? `\\b${safeQuery}\\b` : safeQuery
+      const re = new RegExp(pattern, flags)
+
+      scored = scored.filter(r => re.test(r.doc.text))
+    }
+
     return scored
-      .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, topK)
   }
