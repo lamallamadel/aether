@@ -9,11 +9,6 @@ import { markdown } from '@codemirror/lang-markdown'
 import { gutter, GutterMarker } from '@codemirror/view'
 import { useEffect, useMemo, useRef } from 'react'
 
-
-const languageCompartment = new Compartment()
-const wrapCompartment = new Compartment()
-const themeCompartment = new Compartment()
-
 // --- Syntax Highlighting ---
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
@@ -164,6 +159,9 @@ export function CodeEditor(props: {
   const viewRef = useRef<EditorView | null>(null)
   const lastValueRef = useRef<string>(value)
   const debounceRef = useRef<number | null>(null)
+  const languageCompartment = useRef(new Compartment()).current
+  const wrapCompartment = useRef(new Compartment()).current
+  const themeCompartment = useRef(new Compartment()).current
 
   const language = useMemo(() => languageForFile(fileId), [fileId])
   const baseTheme = useMemo(() => {

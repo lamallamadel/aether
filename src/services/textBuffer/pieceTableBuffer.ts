@@ -74,18 +74,22 @@ const insertAt = (pieces: Piece[], offset: number, insertPiece: Piece): Piece[] 
   return normalizePieces(out)
 }
 
+const COMPACTION_THRESHOLD = 500
+
 export class PieceTableBuffer implements TextBuffer {
   readonly length: number
 
   private readonly original: string
   private readonly add: string
   private readonly pieces: Piece[]
+  private readonly opsSinceCompaction: number
 
-  constructor(original: string, add: string, pieces: Piece[]) {
+  constructor(original: string, add: string, pieces: Piece[], opsSinceCompaction = 0) {
     this.original = original
     this.add = add
     this.pieces = normalizePieces(pieces)
     this.length = piecesTextLength(this.pieces)
+    this.opsSinceCompaction = opsSinceCompaction
   }
 
   static fromText(text: string): PieceTableBuffer {
@@ -101,13 +105,20 @@ export class PieceTableBuffer implements TextBuffer {
     return out
   }
 
+  private maybeCompact(buffer: PieceTableBuffer): PieceTableBuffer {
+    if (buffer.opsSinceCompaction < COMPACTION_THRESHOLD) return buffer
+    const text = buffer.getText()
+    return PieceTableBuffer.fromText(text)
+  }
+
   insert(offset: number, text: string): TextBuffer {
     const safeOffset = clamp(offset, 0, this.length)
     if (!text) return this
     const addStart = this.add.length
     const nextAdd = this.add + text
     const nextPieces = insertAt(this.pieces, safeOffset, { source: 'add', start: addStart, length: text.length })
-    return new PieceTableBuffer(this.original, nextAdd, nextPieces)
+    const next = new PieceTableBuffer(this.original, nextAdd, nextPieces, this.opsSinceCompaction + 1)
+    return this.maybeCompact(next)
   }
 
   delete(startOffset: number, endOffsetExclusive: number): TextBuffer {
@@ -116,6 +127,7 @@ export class PieceTableBuffer implements TextBuffer {
     assertRange(start, end)
     if (start === end) return this
     const nextPieces = deleteRange(this.pieces, start, end)
-    return new PieceTableBuffer(this.original, this.add, nextPieces)
+    const next = new PieceTableBuffer(this.original, this.add, nextPieces, this.opsSinceCompaction + 1)
+    return this.maybeCompact(next)
   }
 }

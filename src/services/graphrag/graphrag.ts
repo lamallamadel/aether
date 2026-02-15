@@ -20,6 +20,16 @@ const scoreText = (qTokens: string[], text: string) => {
   return score
 }
 
+/** Convert a character offset to a 1-based line number within content. */
+const charOffsetToLine = (content: string, offset: number): number => {
+  const clamped = Math.min(offset, content.length)
+  let line = 1
+  for (let i = 0; i < clamped; i++) {
+    if (content[i] === '\n') line++
+  }
+  return line
+}
+
 export const buildChunksFromSymbols = (fileId: string, content: string, symbols: ExtractedSymbol[]) => {
   const out: RagChunkRecord[] = []
   const now = Date.now()
@@ -54,11 +64,11 @@ export const ingestFile = async (fileId: string, content: string, symbols: Extra
   // 1. Persist to GraphRAG DB (Legacy/Metadata)
   await upsertChunks(chunks)
 
-  // 2. Persist to Vector Store (New Aksil Layer)
+  // 2. Persist to Vector Store — convert char indices to line numbers
   const vectorChunks = chunks.map(c => ({
     content: c.text,
-    startLine: c.startIndex, // Note: Transforming char index to line number would be better but keeping simple for now
-    endLine: c.endIndex
+    startLine: charOffsetToLine(content, c.startIndex),
+    endLine: charOffsetToLine(content, c.endIndex)
   }))
   await vectorStore.persistVectors(fileId, vectorChunks)
 }
@@ -67,8 +77,6 @@ export const graphragQuery = async (query: string, topK = 20) => {
   if (typeof indexedDB === 'undefined') return []
 
   // Parallel Search: Vector + Keyword with Timeout
-  // We handle vector search failures gracefully (e.g. model download error)
-  // And we enforce a 15s timeout to prevent UI hanging during model load
   const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
     return Promise.race([
       promise,
@@ -84,16 +92,9 @@ export const graphragQuery = async (query: string, topK = 20) => {
     withTimeout(getAllChunks(), 5000, [])
   ])
 
-  console.log('GraphRAG Debug:', {
-    query,
-    vectorResults: vectorResults.length,
-    allChunks: allChunks.length
-  })
-
   const qTokens = tokenize(query)
 
-  // Combine Scores
-  // We use a Map to merge results by ID
+  // Combine Scores via Map to merge results by ID
   const merged = new Map<string, { chunk: RagChunkRecord; score: number }>()
 
   // 1. Process Keyword Matches
@@ -104,32 +105,32 @@ export const graphragQuery = async (query: string, topK = 20) => {
     }
   }
 
+  const results: { chunk: RagChunkRecord; score: number }[] = []
 
-
-  const results = []
-
-  // Convert Vector Results to RagChunkRecord shape (approximate)
+  // 2. Convert Vector Results to RagChunkRecord shape
   for (const v of vectorResults) {
     results.push({
       chunk: {
         id: v.id,
         fileId: v.fileId,
-        startIndex: v.startLine, // Mapped to startLine for now
+        startIndex: v.startLine,
         endIndex: v.endLine,
         text: v.content,
-        symbols: v.tags || [],
+        symbols: [],
         updatedAt: Date.now()
       } as RagChunkRecord,
-      score: v.score * 2 // Boost vector score
+      score: v.score * 2
     })
   }
 
-  // Add Keyword Results if we need more filling
+  // 3. Fill from keyword results, dedup by chunk id
+  const seenIds = new Set(results.map(r => r.chunk.id))
   if (results.length < topK) {
     const keywordSorted = [...merged.values()].sort((a, b) => b.score - a.score)
     for (const k of keywordSorted) {
-      if (!results.find(r => r.chunk.text === k.chunk.text)) { // Dedup by text content
+      if (!seenIds.has(k.chunk.id)) {
         results.push(k)
+        seenIds.add(k.chunk.id)
       }
       if (results.length >= topK) break
     }
@@ -137,4 +138,3 @@ export const graphragQuery = async (query: string, topK = 20) => {
 
   return results.sort((a, b) => b.score - a.score).slice(0, topK)
 }
-

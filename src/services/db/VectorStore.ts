@@ -19,7 +19,6 @@ export interface EmbeddingProvider {
     embed(text: string): Promise<Float32Array>
 }
 
-// Placeholder for the actual embedding model
 import { pipeline } from '@xenova/transformers'
 
 export const transformersEmbeddingProvider: EmbeddingProvider = {
@@ -33,13 +32,17 @@ export const transformersEmbeddingProvider: EmbeddingProvider = {
 class PipelineSingleton {
     static task = 'feature-extraction'
     static model = 'Xenova/all-MiniLM-L6-v2'
-    static instance: any = null
+    private static loading: Promise<any> | null = null
 
     static async getInstance(progress_callback?: Function) {
-        if (this.instance === null) {
-            this.instance = await pipeline(this.task as any, this.model, { progress_callback })
+        if (!this.loading) {
+            this.loading = pipeline(this.task as any, this.model, { progress_callback })
+                .catch((err) => {
+                    this.loading = null
+                    throw err
+                })
         }
-        return this.instance
+        return this.loading
     }
 }
 
@@ -53,15 +56,23 @@ export class VectorStore {
     async persistVectors(fileId: string, chunks: { content: string; startLine: number; endLine: number }[]) {
         const vectors: DBVector[] = []
         for (const chunk of chunks) {
+            const hash = this.simpleHash(chunk.content)
+            const id = `${fileId}:${chunk.startLine}-${chunk.endLine}`
+            const existing = await db.getVectorsForFile(fileId)
+            const cached = existing.find(v => v.hash === hash)
+            if (cached) {
+                vectors.push({ ...cached, id, startLine: chunk.startLine, endLine: chunk.endLine })
+                continue
+            }
             const embedding = await this.provider.embed(chunk.content)
             vectors.push({
-                id: `${fileId}:${chunk.startLine}-${chunk.endLine}`,
+                id,
                 fileId,
                 content: chunk.content,
                 startLine: chunk.startLine,
                 endLine: chunk.endLine,
                 embedding,
-                hash: this.simpleHash(chunk.content)
+                hash
             })
         }
         await db.upsertVectors(vectors)
