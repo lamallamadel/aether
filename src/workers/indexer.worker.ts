@@ -1,43 +1,41 @@
 import { buildTfIdfIndex, type TfIdfIndex } from '../services/indexing/tfidfIndex'
+import type { WorkerMessage, WorkerResponse } from '../services/workers/worker.types'
 
-type BuildMessage = { type: 'build'; files: Array<{ fileId: string; content: string }> }
-type SearchMessage = { type: 'search'; query: string; topK?: number }
-
-type OutMessage =
-  | { type: 'built'; docCount: number }
-  | { type: 'searchResult'; results: Array<{ fileId: string; startLine: number; endLine: number; score: number }> }
-  | { type: 'error'; message: string }
+console.log('Indexer Worker: Script Loaded')
 
 let index: TfIdfIndex | null = null
 
-const post = (msg: OutMessage) => {
-  self.postMessage(msg)
+const post = (id: string, payload: any, error?: string) => {
+  const response: WorkerResponse = { id, payload, error }
+  self.postMessage(response)
 }
 
-self.onmessage = (event: MessageEvent<BuildMessage | SearchMessage>) => {
-  const msg = event.data
+self.onmessage = (event: MessageEvent<WorkerMessage>) => {
+  const { id, type, payload } = event.data
+  console.log('Indexer Worker Received:', { id, type, payloadSummary: payload?.files?.length || payload?.query })
   try {
-    if (msg.type === 'build') {
-      index = buildTfIdfIndex(msg.files)
-      post({ type: 'built', docCount: index.docs.length })
+    if (type === 'INDEX_BUILD') {
+      index = buildTfIdfIndex(payload.files)
+      post(id, { docCount: index.docs.length })
       return
     }
 
-    if (msg.type === 'search') {
+    if (type === 'INDEX_SEARCH') {
       if (!index) {
-        post({ type: 'error', message: 'Index not built' })
+        post(id, null, 'Index not built')
         return
       }
-      const results = index.search(msg.query, msg.topK).map((r) => ({
+      const results = index.search(payload.query, payload.topK, payload.options).map((r) => ({
         fileId: r.doc.fileId,
         startLine: r.doc.startLine,
         endLine: r.doc.endLine,
         score: r.score,
+        snippet: r.doc.text,
       }))
-      post({ type: 'searchResult', results })
+      post(id, { results })
       return
     }
   } catch (e) {
-    post({ type: 'error', message: String(e) })
+    post(id, null, String(e))
   }
 }
