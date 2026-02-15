@@ -17,13 +17,13 @@ export function chunkByTokenLimit(fileId: string, content: string, maxTokensPerC
 
     // If a single line is too long, we might need to handle it, but for now we just add it and overflow
     if (currentTokens + lineTokens > maxTokensPerChunk && currentChunk.length > 0) {
-      // Push current chunk
+      // Push current chunk — use consistent 1-based line numbers
       const text = currentChunk.join('\n')
       docs.push({
         id: `${fileId}:${startLine + 1}-${i}`,
         fileId,
         startLine: startLine + 1,
-        endLine: i,
+        endLine: i, // i is exclusive end (last line index not included), consistent with startLine being 1-based start of next chunk
         text,
       })
       // Reset for next chunk

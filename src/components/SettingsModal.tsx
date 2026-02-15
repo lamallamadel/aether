@@ -1,5 +1,5 @@
 import { Check, Cloud, Monitor, Palette, Settings, Shield, Type, X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useEditorStore } from '../state/editorStore'
 import { ThemedSelect } from './ThemedSelect'
 
@@ -23,17 +23,53 @@ export function SettingsModal() {
     setIdeThemeColor,
   } = useEditorStore()
 
-  useEffect(() => {
-    if (!settingsOpen) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        setSettingsOpen(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<Element | null>(null)
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setSettingsOpen(false)
+      return
+    }
+    // Focus trap: cycle focus within the dialog
+    if (e.key === 'Tab' && dialogRef.current) {
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setSettingsOpen, settingsOpen])
+  }, [setSettingsOpen])
+
+  useEffect(() => {
+    if (!settingsOpen) return
+    previousFocusRef.current = document.activeElement
+    window.addEventListener('keydown', handleKeyDown)
+    // Auto-focus the dialog on open
+    requestAnimationFrame(() => {
+      dialogRef.current?.focus()
+    })
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      // Restore focus to previously focused element
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus()
+      }
+    }
+  }, [settingsOpen, handleKeyDown])
 
   if (!settingsOpen) return null
 
@@ -43,10 +79,12 @@ export function SettingsModal() {
       onClick={() => setSettingsOpen(false)}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="w-[520px] max-w-[95vw] bg-[#1a1a1a] rounded-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col"
+        tabIndex={-1}
+        className="w-[520px] max-w-[95vw] bg-[#1a1a1a] rounded-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#151515]">
