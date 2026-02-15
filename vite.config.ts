@@ -4,6 +4,20 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
+          return
+        }
+        if (warning.message.includes('Use of direct `eval`')) {
+          return
+        }
+        warn(warning)
+      },
+      external: ['fs/promises', 'module', 'path', 'url'],
+    }
+  },
   test: {
     environment: 'jsdom',
     globals: true,

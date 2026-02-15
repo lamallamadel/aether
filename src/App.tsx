@@ -12,6 +12,7 @@ import { StatusBar } from './components/StatusBar'
 import { useEditorStore } from './state/editorStore'
 import { enableZeroEgress } from './services/security/networkGuard'
 import { startPerfMonitor } from './services/perf/perfMonitor'
+import { workerBridge } from './services/workers/WorkerBridge'
 import { THEME_COLORS } from './lib/theme'
 
 export default function App() {
@@ -44,12 +45,10 @@ export default function App() {
     traverse(files)
     
     console.log('App: Starting Initial Indexing...', { fileCount: flatFiles.length, files: flatFiles.map(f => f.fileId) })
-
-    import('./services/workers/WorkerBridge').then(({ workerBridge }) => {
-        workerBridge.postRequest('INDEX_BUILD', { files: flatFiles })
-            .then((res:any) => console.log('App: Initial Indexing Complete:', res))
-            .catch(err => console.error('App: Indexing Failed:', err))
-    })
+    
+    workerBridge.postRequest('INDEX_BUILD', { files: flatFiles })
+        .then((res:any) => console.log('App: Initial Indexing Complete:', res))
+        .catch((err:any) => console.error('App: Indexing Failed:', err))
   }, [])
 
   useEffect(() => {
