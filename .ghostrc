@@ -1,0 +1,5 @@
+{
+  "provider": "openai",
+  "model": "gpt-5.2",
+  "openai_api_key": "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"
+}

@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+:root {
+  --menu-bar-bg: #0c0c0c;
+  --menu-bar-border: rgba(255, 255, 255, 0.06);
+  --menu-text: rgba(255, 255, 255, 0.78);
+  --menu-text-muted: rgba(255, 255, 255, 0.6);
+  --menu-item-hover-bg: rgba(147, 51, 234, 0.14);
+  --menu-item-active-bg: rgba(147, 51, 234, 0.22);
+  --menu-dropdown-bg: #111111;
+  --menu-dropdown-border: rgba(255, 255, 255, 0.1);
+  --menu-icon-primary: rgba(168, 85, 247, 0.95);
+  --menu-radius: 8px;
+  --menu-dropdown-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+.menu-bar {
+  background: var(--menu-bar-bg);
+  border-bottom: 1px solid var(--menu-bar-border);
+  height: 36px;
+  color: var(--menu-text);
+}
+
+.menu-brand {
+  color: var(--menu-icon-primary);
+}
+
+.menu-button {
+  border-radius: calc(var(--menu-radius) - 2px);
+  transition: background-color 200ms ease-out, color 200ms ease-out, opacity 200ms ease-out;
+}
+
+.menu-button:hover {
+  background: var(--menu-item-hover-bg);
+  color: white;
+}
+
+.menu-button:focus,
+.menu-button:focus-visible {
+  background: var(--menu-item-hover-bg);
+  color: white;
+}
+
+.menu-button-active {
+  background: var(--menu-item-active-bg);
+  color: white;
+}
+
+.menu-focus:focus-visible {
+  outline: 2px solid rgba(147, 51, 234, 0.6);
+  outline-offset: 2px;
+}
+
+.menu-dropdown {
+  width: 240px;
+  background: var(--menu-dropdown-bg);
+  border: 1px solid var(--menu-dropdown-border);
+  box-shadow: var(--menu-dropdown-shadow);
+  border-radius: var(--menu-radius);
+  padding: 4px 0;
+}
+
+.menu-item {
+  border-radius: calc(var(--menu-radius) - 2px);
+  transition: background-color 200ms ease-out, color 200ms ease-out;
+}
+
+.menu-item:hover {
+  background: var(--menu-item-hover-bg);
+  color: white;
+}
+
+.menu-item:focus,
+.menu-item:focus-visible {
+  background: var(--menu-item-hover-bg);
+  color: white;
+}
+
+.menu-item:focus-visible {
+  outline: 2px solid rgba(147, 51, 234, 0.6);
+  outline-offset: 2px;
+}
+
+.activity-item:focus,
+.activity-item:focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 3px;
+  background: rgba(168, 85, 247, 0.18);
+}
+
+.activity-item:hover {
+  background: rgba(168, 85, 247, 0.12);
+}
+
+.search-select:focus {
+  outline: none;
+  border-color: rgba(147, 51, 234, 0.5);
+}
+
+.search-select:focus-visible {
+  outline: 2px solid rgba(147, 51, 234, 0.6);
+  outline-offset: 2px;
+  border-color: rgba(147, 51, 234, 0.5);
+}
+
+.search-chip:focus,
+.search-chip:focus-visible {
+  outline: 2px solid rgba(147, 51, 234, 0.6);
+  outline-offset: 2px;
+  background: var(--menu-item-hover-bg);
+  color: white;
+}
+
+.search-result-item:focus,
+.search-result-item:focus-visible {
+  outline: 2px solid rgba(147, 51, 234, 0.6);
+  outline-offset: -2px;
+  background: var(--menu-item-hover-bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 5px;
+  border: 2px solid #111;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::selection {
+  background: rgba(147, 51, 234, 0.3);
+  color: white;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+@keyframes menuDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.menu-dropdown-in {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.985);
+  animation: menuDropdownIn 200ms ease-out forwards;
+  transform-origin: top left;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-dropdown-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

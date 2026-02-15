@@ -1,0 +1,14 @@
+{
+  "versionFiles": [
+    {
+      "type": "package-json",
+      "path": "package.json"
+    }
+  ],
+  "tagPrefix": "ide-v",
+  "requireVersionBump": true,
+  "autoTagAfterBump": true,
+  "notifications": {
+    "webhookUrl": null
+  }
+}
