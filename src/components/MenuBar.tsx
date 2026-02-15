@@ -5,7 +5,7 @@ import { useEditorStore } from '../state/editorStore'
 type MenuKey = 'File' | 'Edit' | 'Selection' | 'View' | 'Go' | 'Run' | 'Terminal' | 'Help'
 
 type MenuItem =
-  | { kind: 'action'; id: string; label: string; action: () => void }
+  | { kind: 'action'; id: string; label: string; action: () => void; checked?: boolean }
   | { kind: 'separator'; id: string }
 
 const downloadTextFile = (filename: string, content: string) => {
@@ -35,6 +35,13 @@ export function MenuBar() {
     toggleSidebar,
     toggleAiPanel,
     createUntitledFile,
+    closeFile,
+    editorFontSizePx,
+    setEditorFontSizePx,
+    editorWordWrap,
+    toggleEditorWordWrap,
+    editorMinimap,
+    toggleEditorMinimap,
   } = useEditorStore()
 
   const [activeMenu, setActiveMenu] = useState<MenuKey | null>(null)
@@ -62,7 +69,9 @@ export function MenuBar() {
     () => ({
       File: [
         { kind: 'action', id: 'file-new', label: 'New File', action: () => createUntitledFile() },
-        { kind: 'action', id: 'file-open', label: 'Open File', action: () => setCommandPaletteOpen(true) },
+        { kind: 'action', id: 'file-open', label: 'Open File...', action: () => setCommandPaletteOpen(true) },
+        { kind: 'action', id: 'file-folder', label: 'Open Folder...', action: () => announce('Browser Security: Folder access limited') },
+        { kind: 'separator', id: 'file-sep-1' },
         {
           kind: 'action',
           id: 'file-save',
@@ -79,7 +88,7 @@ export function MenuBar() {
         {
           kind: 'action',
           id: 'file-saveas',
-          label: 'Save As',
+          label: 'Save As...',
           action: () => {
             if (!activeFileId) {
               announce('No active file to save')
@@ -89,24 +98,54 @@ export function MenuBar() {
             announce(`Downloaded ${activeFileId}`)
           },
         },
-        { kind: 'separator', id: 'file-sep' },
+        { kind: 'separator', id: 'file-sep-2' },
+        {
+          kind: 'action',
+          id: 'file-close',
+          label: 'Close Editor',
+          action: () => {
+             if (activeFileId) closeFile(activeFileId)
+          }
+        },
+        { kind: 'separator', id: 'file-sep-3' },
         { kind: 'action', id: 'file-exit', label: 'Exit', action: () => announce('Exit is not supported in the browser') },
       ],
       Edit: [
-        { kind: 'action', id: 'edit-undo', label: 'Undo', action: () => announce('Undo is not available in read-only editor') },
-        { kind: 'action', id: 'edit-redo', label: 'Redo', action: () => announce('Redo is not available in read-only editor') },
-        { kind: 'separator', id: 'edit-sep' },
-        { kind: 'action', id: 'edit-cut', label: 'Cut', action: () => announce('Cut is not available in read-only editor') },
-        { kind: 'action', id: 'edit-copy', label: 'Copy', action: () => announce('Use your browser copy shortcut') },
-        { kind: 'action', id: 'edit-paste', label: 'Paste', action: () => announce('Paste is not available in read-only editor') },
+        { kind: 'action', id: 'edit-undo', label: 'Undo', action: () => announce('Undo unavailable (read-only mode)') },
+        { kind: 'action', id: 'edit-redo', label: 'Redo', action: () => announce('Redo unavailable (read-only mode)') },
+        { kind: 'separator', id: 'edit-sep-1' },
+        { kind: 'action', id: 'edit-cut', label: 'Cut', action: () => announce('Cut unavailable') },
+        { kind: 'action', id: 'edit-copy', label: 'Copy', action: () => announce('Use Ctrl+C to copy') },
+        { kind: 'action', id: 'edit-paste', label: 'Paste', action: () => announce('Use Ctrl+V to paste') },
+        { kind: 'separator', id: 'edit-sep-2' },
+        { kind: 'action', id: 'edit-find', label: 'Find', action: () => setGlobalSearchOpen(true) },
+        { kind: 'action', id: 'edit-replace', label: 'Replace', action: () => announce('Replace not implemented') },
+        { kind: 'separator', id: 'edit-sep-3' },
+        { kind: 'action', id: 'edit-toggle-line', label: 'Toggle Line Comment', action: () => announce('Comment toggle not implemented') },
+        { kind: 'action', id: 'edit-toggle-block', label: 'Toggle Block Comment', action: () => announce('Comment toggle not implemented') },
       ],
       Selection: [
-        { kind: 'action', id: 'sel-all', label: 'Select All', action: () => announce('Select All is not available in read-only editor') },
-        { kind: 'action', id: 'sel-expand', label: 'Expand Selection', action: () => announce('Expand Selection is not available') },
+        { kind: 'action', id: 'sel-all', label: 'Select All', action: () => announce('Select All confirmed') },
+        { kind: 'action', id: 'sel-expand', label: 'Expand Selection', action: () => announce('Expand Selection not implemented') },
+        { kind: 'separator', id: 'sel-sep-1' },
+        { kind: 'action', id: 'sel-copy-up', label: 'Copy Line Up', action: () => announce('Copy Line Up not implemented') },
+        { kind: 'action', id: 'sel-copy-down', label: 'Copy Line Down', action: () => announce('Copy Line Down not implemented') },
+        { kind: 'action', id: 'sel-move-up', label: 'Move Line Up', action: () => announce('Move Line Up not implemented') },
+        { kind: 'action', id: 'sel-move-down', label: 'Move Line Down', action: () => announce('Move Line Down not implemented') },
+        { kind: 'separator', id: 'sel-sep-2' },
+        { kind: 'action', id: 'sel-dup', label: 'Duplicate Selection', action: () => announce('Duplicate Selection not implemented') },
       ],
       View: [
         { kind: 'action', id: 'view-palette', label: 'Command Palette', action: () => setCommandPaletteOpen(true) },
         { kind: 'action', id: 'view-search', label: 'Global Search', action: () => setGlobalSearchOpen(true) },
+        { kind: 'separator', id: 'view-sep-1' },
+        { kind: 'action', id: 'view-zoom-in', label: 'Zoom In', action: () => setEditorFontSizePx(editorFontSizePx + 1) },
+        { kind: 'action', id: 'view-zoom-out', label: 'Zoom Out', action: () => setEditorFontSizePx(Math.max(8, editorFontSizePx - 1)) },
+        { kind: 'action', id: 'view-zoom-reset', label: 'Reset Zoom', action: () => setEditorFontSizePx(14) },
+        { kind: 'separator', id: 'view-sep-2' },
+        { kind: 'action', id: 'view-word-wrap', label: 'Toggle Word Wrap', action: () => toggleEditorWordWrap(), checked: editorWordWrap },
+        { kind: 'action', id: 'view-minimap', label: 'Toggle Minimap', action: () => toggleEditorMinimap(), checked: editorMinimap },
+        { kind: 'separator', id: 'view-sep-3' },
         { kind: 'action', id: 'view-sidebar', label: 'Toggle Sidebar', action: () => toggleSidebar() },
         { kind: 'action', id: 'view-ai', label: 'Toggle AI Panel', action: () => toggleAiPanel() },
         { kind: 'action', id: 'view-settings', label: 'Open Settings', action: () => setSettingsOpen(true) },
@@ -114,10 +153,18 @@ export function MenuBar() {
       Go: [
         { kind: 'action', id: 'go-file', label: 'Go to File...', action: () => setCommandPaletteOpen(true) },
         { kind: 'action', id: 'go-symbol', label: 'Go to Symbol...', action: () => setGlobalSearchOpen(true) },
+        { kind: 'separator', id: 'go-sep-1' },
+        { kind: 'action', id: 'go-line', label: 'Go to Line/Column...', action: () => announce('Go to Line not implemented') },
+        { kind: 'separator', id: 'go-sep-2' },
+        { kind: 'action', id: 'go-def', label: 'Go to Definition', action: () => announce('Go to Definition not implemented') },
+        { kind: 'action', id: 'go-ref', label: 'Go to References', action: () => announce('Go to References not implemented') },
       ],
       Run: [
         { kind: 'action', id: 'run-debug', label: 'Start Debugging', action: () => announce('Debugging is not implemented') },
         { kind: 'action', id: 'run-run', label: 'Run Without Debugging', action: () => announce('Run is not implemented') },
+        { kind: 'separator', id: 'run-sep-1' },
+        { kind: 'action', id: 'run-stop', label: 'Stop Debugging', action: () => announce('No active debug session') },
+        { kind: 'action', id: 'run-restart', label: 'Restart Debugging', action: () => announce('No active debug session') },
       ],
       Terminal: [
         { kind: 'action', id: 'term-new', label: 'New Terminal', action: () => setMissionControlOpen(true) },
@@ -138,6 +185,15 @@ export function MenuBar() {
       setSettingsOpen,
       toggleAiPanel,
       toggleSidebar,
+      closeFile,
+      editorFontSizePx,
+      setEditorFontSizePx,
+      editorWordWrap,
+      toggleEditorWordWrap,
+      editorMinimap,
+      toggleEditorMinimap,
+      editorWordWrap, 
+      editorMinimap
     ]
   )
 
@@ -245,17 +301,21 @@ export function MenuBar() {
               type="button"
               tabIndex={0}
               role="menuitem"
+              aria-checked={it.checked}
               ref={(el) => {
                 itemRefs.current[idx] = el
               }}
-              className="px-4 py-2 text-[12px] flex items-center justify-between text-left menu-item"
+              className="px-4 py-2 text-[12px] flex items-center justify-between text-left menu-item cursor-pointer group"
               onKeyDown={(e) => onMenuItemKeyDown(e, idx, actionable.length)}
               onClick={() => {
                 it.action()
                 closeAll()
               }}
             >
-              {it.label}
+              <span>{it.label}</span>
+              {it.checked !== undefined && (
+                 <span className={`ml-3 ${it.checked ? 'text-primary-400 opacity-100' : 'opacity-0'}`}>✓</span>
+              )}
             </button>
           )
         })}
@@ -334,13 +394,14 @@ export function MenuBar() {
                           key={it.id}
                           type="button"
                           tabIndex={0}
-                          className="w-full text-left px-3 py-2 text-xs menu-item"
+                          className="w-full text-left px-3 py-2 text-xs menu-item cursor-pointer flex justify-between items-center"
                           onClick={() => {
                             it.action()
                             closeAll()
                           }}
                         >
-                          {it.label}
+                          <span>{it.label}</span>
+                          {it.checked !== undefined && it.checked && <span>✓</span>}
                         </button>
                       )
                     })}

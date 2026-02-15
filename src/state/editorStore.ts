@@ -20,6 +20,9 @@ export interface EditorState {
   editorFontSizePx: number
   editorWordWrap: boolean
   editorMinimap: boolean
+  editorTheme: string
+  editorFontFamily: string
+  ideThemeColor: string
   _untitledCounter: number
   syntaxTrees: Record<string, SerializedTree>
   symbolsByFile: Record<string, ExtractedSymbol[]>
@@ -43,6 +46,9 @@ export interface EditorState {
   setEditorFontSizePx: (value: number) => void
   toggleEditorWordWrap: () => void
   toggleEditorMinimap: () => void
+  setEditorTheme: (theme: string) => void
+  setEditorFontFamily: (font: string) => void
+  setIdeThemeColor: (color: string) => void
   createUntitledFile: () => void
   upsertWorktreeChange: (change: { fileId: string; originalContent: string; proposedContent: string }) => void
   rejectWorktreeChange: (fileId: string) => void
@@ -104,6 +110,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editorFontSizePx: 14,
   editorWordWrap: false,
   editorMinimap: true,
+  editorTheme: 'Aether',
+  editorFontFamily: 'JetBrains Mono',
+  ideThemeColor: 'purple',
   _untitledCounter: 1,
   syntaxTrees: {},
   symbolsByFile: {},
@@ -150,6 +159,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setEditorFontSizePx: (value) => set({ editorFontSizePx: value }),
   toggleEditorWordWrap: () => set((state) => ({ editorWordWrap: !state.editorWordWrap })),
   toggleEditorMinimap: () => set((state) => ({ editorMinimap: !state.editorMinimap })),
+  setEditorTheme: (theme) => set({ editorTheme: theme }),
+  setEditorFontFamily: (font) => set({ editorFontFamily: font }),
+  setIdeThemeColor: (color) => set({ ideThemeColor: color }),
 
   createUntitledFile: () =>
     set((state) => {

@@ -170,8 +170,9 @@ export function CommandPalette() {
                 onMouseEnter={() => setSelectedIndex(idx)}
                 className={`
                   flex items-center px-4 py-2 cursor-pointer transition-colors
-                  ${idx === selectedIndex ? 'bg-purple-600/20 text-white' : 'text-gray-400 hover:bg-white/5'}
+                  ${idx === selectedIndex ? 'text-white' : 'text-gray-400 hover:bg-white/5'}
                 `}
+                style={{ backgroundColor: idx === selectedIndex ? 'rgb(var(--color-primary-600) / 0.2)' : undefined }}
               >
                 <div className="mr-3 opacity-60">
                   {'type' in item && item.type === 'command' ? item.icon : <FileCode size={14} />}
@@ -182,7 +183,7 @@ export function CommandPalette() {
                     <span className="text-[10px] text-gray-600 truncate">{item.parentId}</span>
                   )}
                 </div>
-                {idx === selectedIndex && <CornerDownLeft size={12} className="text-purple-400 opacity-50" />}
+                {idx === selectedIndex && <CornerDownLeft size={12} style={{ color: 'rgb(var(--color-primary-400))' }} opacity={0.5} />}
               </div>
             ))
           )}

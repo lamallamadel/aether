@@ -6,11 +6,86 @@ import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
+import { gutter, GutterMarker } from '@codemirror/view'
 import { useEffect, useMemo, useRef } from 'react'
+
 
 const languageCompartment = new Compartment()
 const wrapCompartment = new Compartment()
 const themeCompartment = new Compartment()
+
+// --- Syntax Highlighting ---
+import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
+
+const aetherHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: '#c084fc' }, // purple-400
+  { tag: [tags.name, tags.deleted, tags.character, tags.propertyName, tags.macroName], color: '#d4d4d4' },
+  { tag: [tags.function(tags.variableName), tags.labelName], color: '#67e8f9' }, // cyan-300
+  { tag: [tags.color, tags.constant(tags.name), tags.standard(tags.name)], color: '#fdba74' }, // orange-300
+  { tag: [tags.definition(tags.name), tags.separator], color: '#d4d4d4' },
+  { tag: [tags.typeName, tags.className, tags.number, tags.changed, tags.annotation, tags.modifier, tags.self, tags.namespace], color: '#fdba74' }, // orange-300
+  { tag: [tags.operator, tags.operatorKeyword, tags.url, tags.escape, tags.regexp, tags.link, tags.special(tags.string)], color: '#f472b6' }, // pink-400
+  { tag: [tags.meta, tags.comment], color: '#6b7280', fontStyle: 'italic' }, // gray-500
+  { tag: tags.strong, fontWeight: 'bold' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.strikethrough, textDecoration: 'line-through' },
+  { tag: tags.link, color: '#6b7280', textDecoration: 'underline' },
+  { tag: tags.heading, fontWeight: 'bold', color: '#c084fc' },
+  { tag: [tags.atom, tags.bool, tags.special(tags.variableName)], color: '#fdba74' }, // orange-300
+  { tag: [tags.processingInstruction, tags.string, tags.inserted], color: '#fde047' }, // yellow-300
+  { tag: tags.invalid, color: '#ff0000' },
+])
+
+// --- AI Gutter Implementation ---
+
+const MOCK_AI_SUGGESTIONS: Record<number, 'warning' | 'suggestion'> = {
+  10: 'warning',
+  15: 'suggestion',
+  22: 'suggestion',
+}
+
+class AIGutterMarker extends GutterMarker {
+  readonly type: 'warning' | 'suggestion'
+
+  constructor(type: 'warning' | 'suggestion') {
+    super()
+    this.type = type
+  }
+
+  toDOM() {
+    const span = document.createElement('span')
+    span.className = 'flex items-center justify-center w-full h-full cursor-pointer hover:bg-white/10 rounded transition-colors'
+    
+    // Using inline SVG for performance in raw DOM
+    if (this.type === 'warning') {
+      span.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgb(234 179 8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`
+    } else {
+      span.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgb(168 85 247)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`
+    }
+    
+    span.onclick = (e) => {
+      e.stopPropagation()
+      // Dispatch a custom event that React components can listen to, or use a store
+      const event = new CustomEvent('aether-ai-click', { detail: { type: this.type } })
+      window.dispatchEvent(event)
+    }
+    
+    return span
+  }
+}
+
+const aiGutter = gutter({
+  class: 'cm-ai-gutter',
+  lineMarker(view, line) {
+    const lineNum = view.state.doc.lineAt(line.from).number
+    const suggestion = MOCK_AI_SUGGESTIONS[lineNum]
+    return suggestion ? new AIGutterMarker(suggestion) : null
+  },
+  initialSpacer: () => new AIGutterMarker('suggestion'),
+})
+
+// --- End AI Gutter ---
 
 function languageForFile(fileId: string | null) {
   if (!fileId) return null
@@ -21,47 +96,110 @@ function languageForFile(fileId: string | null) {
   return null
 }
 
+const getThemeConfig = (theme: string) => {
+  switch (theme) {
+    case 'Sublime':
+      return {
+        bg: '#272822',
+        text: '#F8F8F2',
+        gutterBg: '#272822',
+        gutterText: '#8F908A',
+        selection: '#49483E',
+      }
+    case 'Monokai':
+      return {
+        bg: '#272822',
+        text: '#F8F8F2',
+        gutterBg: '#272822',
+        gutterText: '#8F908A',
+        selection: '#49483E',
+      }
+    case 'Nord':
+      return {
+        bg: '#2E3440',
+        text: '#D8DEE9',
+        gutterBg: '#2E3440',
+        gutterText: '#4C566A',
+        selection: '#434C5E',
+      }
+    case 'Solarized Light':
+      return {
+        bg: '#fdf6e3',
+        text: '#657b83',
+        gutterBg: '#fdf6e3',
+        gutterText: '#93a1a1',
+        selection: '#eee8d5',
+      }
+    case 'Solarized Dark':
+      return {
+        bg: '#002b36',
+        text: '#839496',
+        gutterBg: '#002b36',
+        gutterText: '#586e75',
+        selection: '#073642',
+      }
+    case 'Aether':
+    default:
+      return {
+        bg: '#1e1e1e',
+        text: '#d4d4d4',
+        gutterBg: '#1e1e1e',
+        gutterText: '#6b7280',
+        selection: 'rgba(147, 51, 234, 0.30)',
+      }
+  }
+}
+
 export function CodeEditor(props: {
   fileId: string | null
   value: string
   onChange: (next: string) => void
   fontSizePx: number
+  fontFamily: string
+  theme: string
   wordWrap: boolean
 }) {
-  const { fileId, value, onChange, fontSizePx, wordWrap } = props
+  const { fileId, value, onChange, fontSizePx, fontFamily, theme, wordWrap } = props
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const lastValueRef = useRef<string>(value)
   const debounceRef = useRef<number | null>(null)
 
   const language = useMemo(() => languageForFile(fileId), [fileId])
-  const baseTheme = useMemo(
-    () =>
-      EditorView.theme(
-        {
-          '&': {
-            height: '100%',
-            backgroundColor: '#1e1e1e',
-            color: '#d4d4d4',
-            fontSize: `${fontSizePx}px`,
-            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-          },
-          '.cm-content': { caretColor: '#ffffff' },
-          '.cm-gutters': {
-            backgroundColor: '#1e1e1e',
-            color: '#6b7280',
-            borderRight: '1px solid rgba(255,255,255,0.05)',
-          },
-          '.cm-activeLineGutter': { backgroundColor: 'rgba(255,255,255,0.04)' },
-          '.cm-activeLine': { backgroundColor: 'rgba(255,255,255,0.03)' },
-          '.cm-selectionBackground': { backgroundColor: 'rgba(147, 51, 234, 0.30)' },
-          '&.cm-focused .cm-selectionBackground': { backgroundColor: 'rgba(147, 51, 234, 0.35)' },
-          '&.cm-focused': { outline: 'none' },
+  const baseTheme = useMemo(() => {
+    const themeConfig = getThemeConfig(theme)
+    return EditorView.theme(
+      {
+        '&': {
+          height: '100%',
+          backgroundColor: themeConfig.bg,
+          color: themeConfig.text,
+          fontSize: `${fontSizePx}px`,
+          fontFamily: `${fontFamily}, monospace`,
         },
-        { dark: true }
-      ),
-    [fontSizePx]
-  )
+        '.cm-content': { caretColor: '#ffffff' },
+        '.cm-gutters': {
+          backgroundColor: themeConfig.gutterBg,
+          color: themeConfig.gutterText,
+          borderRight: '1px solid rgba(255,255,255,0.05)',
+        },
+        '.cm-ai-gutter': {
+          width: '24px',
+          backgroundColor: themeConfig.gutterBg,
+          borderRight: '1px solid rgba(255,255,255,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        },
+        '.cm-activeLineGutter': { backgroundColor: 'rgba(255,255,255,0.04)' },
+        '.cm-activeLine': { backgroundColor: 'rgba(255,255,255,0.03)' },
+        '.cm-selectionBackground': { backgroundColor: themeConfig.selection },
+        '&.cm-focused .cm-selectionBackground': { backgroundColor: themeConfig.selection },
+        '&.cm-focused': { outline: 'none' },
+      },
+      { dark: true }
+    )
+  }, [fontSizePx, fontFamily, theme])
 
   useEffect(() => {
     if (!hostRef.current) return
@@ -76,6 +214,7 @@ export function CodeEditor(props: {
         highlightActiveLine(),
         history(),
         keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
+        aiGutter, // Add the AI Gutter
         EditorView.updateListener.of((u) => {
           if (!u.docChanged) return
           const next = u.state.doc.toString()
@@ -86,6 +225,7 @@ export function CodeEditor(props: {
         themeCompartment.of(baseTheme),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         languageCompartment.of(language ? [language] : []),
+        syntaxHighlighting(aetherHighlightStyle),
       ],
     })
 
@@ -97,7 +237,7 @@ export function CodeEditor(props: {
       view.destroy()
       viewRef.current = null
     }
-  }, [baseTheme, language, onChange, value, wordWrap])
+  }, [baseTheme, language, onChange, wordWrap])
 
   useEffect(() => {
     const view = viewRef.current

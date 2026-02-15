@@ -1,21 +1,21 @@
-import { wrap } from 'comlink'
-import type { ExtractedSymbol, SerializedTree } from './syntaxTypes'
+import { workerBridge } from '../workers/WorkerBridge'
+import type { SerializedTree, ExtractedSymbol } from './syntaxTypes'
 
 type LanguageId = 'javascript' | 'typescript' | 'tsx'
 
-type SyntaxWorkerApi = {
-  parse: (languageId: LanguageId, content: string) => Promise<{ tree: SerializedTree; symbols: ExtractedSymbol[] }>
+export const parseFileContent = async (languageId: LanguageId, content: string) => {
+  try {
+    const res = await workerBridge.postRequest<{ tree: SerializedTree; symbols: ExtractedSymbol[] }>('PARSE', {
+      languageId,
+      content,
+    })
+    return res
+  } catch (e) {
+    console.warn('Syntax parsing failed', e)
+    return { tree: null, symbols: [] }
+  }
 }
 
-let api: ReturnType<typeof wrap<SyntaxWorkerApi>> | null = null
-
-const getApi = () => {
-  if (api) return api
-  if (typeof Worker === 'undefined') return null
-  const worker = new Worker(new URL('../../workers/syntax.worker.ts', import.meta.url), { type: 'module' })
-  api = wrap<SyntaxWorkerApi>(worker)
-  return api
-}
 
 export const languageIdForFile = (fileId: string): LanguageId | null => {
   const lower = fileId.toLowerCase()
@@ -25,10 +25,3 @@ export const languageIdForFile = (fileId: string): LanguageId | null => {
   return null
 }
 
-export const parseSyntax = async (fileId: string, content: string) => {
-  const lang = languageIdForFile(fileId)
-  if (!lang) return null
-  const client = getApi()
-  if (!client) return null
-  return client.parse(lang, content)
-}

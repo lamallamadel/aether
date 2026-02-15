@@ -1,13 +1,30 @@
-import { ChevronDown, ChevronRight, File, FileCode, FileJson, Folder } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, Code2, Braces, Box, Image as ImageIcon } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import type { FileNode, FileType } from '../domain/fileNode'
 import { useEditorStore } from '../state/editorStore'
 
-function FileIcon({ name, type }: { name: string; type: FileType }) {
-  if (type === 'folder') return <Folder size={16} className="text-blue-400" />
-  if (name.endsWith('.tsx') || name.endsWith('.ts')) return <FileCode size={16} className="text-cyan-400" />
-  if (name.endsWith('.json')) return <FileJson size={16} className="text-yellow-400" />
-  return <File size={16} className="text-gray-400" />
+function FileIcon({ name, type, isActive }: { name: string; type: FileType; isActive: boolean }) {
+  const iconColor = isActive ? 'rgb(var(--color-primary-400))' : undefined
+  
+  if (type === 'folder') {
+      return <Box size={16} color={iconColor ?? 'rgb(96 165 250)'} strokeWidth={1.5} />
+  }
+
+  const lower = name.toLowerCase()
+  if (lower.endsWith('.tsx') || lower.endsWith('.ts')) {
+      return <Code2 size={16} color={iconColor ?? 'rgb(34 211 238)'} strokeWidth={1.5} />
+  }
+  if (lower.endsWith('.json')) {
+      return <Braces size={16} color={iconColor ?? 'rgb(250 204 21)'} strokeWidth={1.5} />
+  }
+  if (lower.endsWith('.md')) {
+      return <FileText size={16} color={iconColor ?? 'rgb(167 139 250)'} strokeWidth={1.5} />
+  }
+  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.svg')) {
+      return <ImageIcon size={16} color={iconColor ?? 'rgb(244 114 182)'} strokeWidth={1.5} />
+  }
+
+  return <FileText size={16} color={iconColor ?? 'rgb(156 163 175)'} strokeWidth={1.5} />
 }
 
 function FileTreeItem({ node, level = 0 }: { node: FileNode; level?: number }) {
@@ -25,20 +42,26 @@ function FileTreeItem({ node, level = 0 }: { node: FileNode; level?: number }) {
 
   return (
     <div className="select-none">
-      <div
-        onClick={handleClick}
-        className={`
-          flex items-center py-1 px-2 cursor-pointer text-sm transition-colors duration-100
-          ${isActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}
-        `}
-        style={{ paddingLeft: `${level * 12 + 12}px` }}
-      >
+        <div
+          onClick={handleClick}
+          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgb(var(--color-primary-600) / 0.1)' }}
+          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = '' }}
+          className={`
+            flex items-center py-1 px-2 cursor-pointer text-sm transition-colors duration-100
+            ${isActive ? 'text-white' : 'text-gray-400 hover:text-gray-200'}
+          `}
+          style={{
+            paddingLeft: `${level * 12 + 12}px`,
+            backgroundColor: isActive ? 'rgb(var(--color-primary-600) / 0.2)' : undefined,
+            color: isActive ? 'rgb(var(--color-primary-100))' : undefined,
+          }}
+        >
         <span className="mr-1.5 opacity-70">
           {node.type === 'folder' && (node.isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />)}
           {node.type === 'file' && <span className="w-3" />}
         </span>
         <span className="mr-2">
-          <FileIcon name={node.name} type={node.type} />
+          <FileIcon name={node.name} type={node.type} isActive={isActive} />
         </span>
         <span className="truncate">{node.name}</span>
       </div>

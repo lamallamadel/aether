@@ -116,7 +116,8 @@ export function ThemedSelect<T extends string>(props: {
         aria-haspopup="listbox"
         aria-controls={listboxId}
         aria-expanded={open}
-        className={`search-select bg-[#1a1a1a] text-gray-200 text-sm rounded-md px-3 py-2 border border-white/5 flex items-center justify-between gap-2 ${className ?? ''}`}
+        className={`search-select bg-[#1a1a1a] text-gray-200 text-sm rounded-md px-3 py-2 border flex items-center justify-between gap-2 ${className ?? ''}`}
+        style={{ borderColor: open ? 'rgb(var(--color-primary-500))' : 'rgba(255, 255, 255, 0.05)' }}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={onButtonKeyDown}
       >
@@ -142,9 +143,12 @@ export function ThemedSelect<T extends string>(props: {
                 type="button"
                 role="option"
                 aria-selected={isSelected}
-                className={`w-full text-left px-3 py-2 text-xs rounded-md menu-focus ${
-                  isSelected ? 'bg-purple-600/20 text-white' : 'text-gray-200 hover:bg-white/5'
+                className={`w-full text-left px-3 py-2 text-xs rounded-md ${
+                  isSelected ? 'text-white' : 'text-gray-200'
                 }`}
+                style={{ backgroundColor: isSelected ? 'rgb(var(--color-primary-600) / 0.2)' : undefined }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'rgb(var(--color-primary-600) / 0.1)' }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '' }}
                 onKeyDown={(e) => onOptionKeyDown(e, idx)}
                 onClick={() => {
                   onChange(opt.value)

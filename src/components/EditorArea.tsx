@@ -1,10 +1,11 @@
+import { memo, useCallback } from 'react'
 import { Command, FileCode, X } from 'lucide-react'
 import { useEditorStore } from '../state/editorStore'
 import { CodeEditor } from './CodeEditor'
-import { parseSyntax } from '../services/syntax/syntaxClient'
+import { parseFileContent, languageIdForFile } from '../services/syntax/syntaxClient'
 import { ingestFile } from '../services/graphrag/graphrag'
 
-function TabSystem() {
+const TabSystem = memo(() => {
   const { openFiles, activeFileId, setActiveFile, closeFile } = useEditorStore()
 
   return (
@@ -15,8 +16,11 @@ function TabSystem() {
           onClick={() => setActiveFile(fileId)}
           className={`
             group flex items-center px-3 min-w-[120px] max-w-[200px] text-xs cursor-pointer border-r border-white/5 select-none
-            ${activeFileId === fileId ? 'bg-[#1e1e1e] text-white border-t-2 border-t-purple-500' : 'text-gray-500 hover:bg-[#151515]'}
+            ${activeFileId === fileId ? 'bg-[#1e1e1e] text-white border-t-2' : 'text-gray-500 hover:bg-[#151515]'}
           `}
+          style={{
+            borderTopColor: activeFileId === fileId ? 'rgb(var(--color-primary-500))' : undefined,
+          }}
         >
           <span className="mr-2">
             <FileCode size={12} className={activeFileId === fileId ? 'text-cyan-400' : 'grayscale opacity-50'} />
@@ -27,7 +31,9 @@ function TabSystem() {
               e.stopPropagation()
               closeFile(fileId)
             }}
-            className={`ml-2 p-0.5 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-white/20 ${activeFileId === fileId ? 'opacity-100' : ''}`}
+            className={`ml-2 p-0.5 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-white/20 ${
+              activeFileId === fileId ? 'opacity-100' : ''
+            }`}
           >
             <X size={10} />
           </button>
@@ -35,11 +41,37 @@ function TabSystem() {
       ))}
     </div>
   )
-}
+})
 
 export function EditorArea() {
-  const { activeFileId, getFileContent, setFileContent, setSyntaxForFile, editorFontSizePx, editorWordWrap, editorMinimap } = useEditorStore()
+  const {
+    activeFileId,
+    getFileContent,
+    setFileContent,
+    setSyntaxForFile,
+    editorFontSizePx,
+    editorWordWrap,
+    editorMinimap,
+    editorTheme,
+    editorFontFamily,
+  } = useEditorStore()
   const content = activeFileId ? getFileContent(activeFileId) : '// Select a file to view content'
+
+  const handleEditorChange = useCallback(
+    (next: string) => {
+      if (!activeFileId) return
+      setFileContent(activeFileId, next)
+      const lang = languageIdForFile(activeFileId)
+      if (!lang) return
+
+      parseFileContent(lang, next).then((res) => {
+        if (!res.tree) return
+        setSyntaxForFile(activeFileId, res.tree, res.symbols)
+        ingestFile(activeFileId, next, res.symbols)
+      })
+    },
+    [activeFileId, setFileContent, setSyntaxForFile]
+  )
 
   return (
     <div className="flex-1 flex flex-col bg-[#1e1e1e] relative overflow-hidden">
@@ -51,15 +83,10 @@ export function EditorArea() {
               <CodeEditor
                 fileId={activeFileId}
                 value={content}
-                onChange={(next) => {
-                  setFileContent(activeFileId, next)
-                  parseSyntax(activeFileId, next).then((res) => {
-                    if (!res) return
-                    setSyntaxForFile(activeFileId, res.tree, res.symbols)
-                    ingestFile(activeFileId, next, res.symbols)
-                  })
-                }}
+                onChange={handleEditorChange}
                 fontSizePx={editorFontSizePx}
+                fontFamily={editorFontFamily}
+                theme={editorTheme}
                 wordWrap={editorWordWrap}
               />
             </div>

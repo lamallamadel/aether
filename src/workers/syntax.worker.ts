@@ -1,6 +1,7 @@
-import { expose } from 'comlink'
-import { Language, Parser } from 'web-tree-sitter'
+import { Parser, Language } from 'web-tree-sitter'
+type SyntaxNode = any
 import type { ExtractedSymbol, SerializedNode, SerializedTree } from '../services/syntax/syntaxTypes'
+import type { WorkerMessage, WorkerResponse } from '../services/workers/worker.types'
 
 import coreWasmUrl from 'web-tree-sitter/tree-sitter.wasm?url'
 import jsWasmUrl from 'tree-sitter-javascript/tree-sitter-javascript.wasm?url'
@@ -30,7 +31,7 @@ const loadLanguage = async (languageId: LanguageId) => {
   return lang
 }
 
-const serializeNode = (node: import('web-tree-sitter').Node, maxDepth: number): SerializedNode => {
+const serializeNode = (node: SyntaxNode, maxDepth: number): SerializedNode => {
   const out: SerializedNode = {
     type: node.type,
     startIndex: node.startIndex,
@@ -39,14 +40,14 @@ const serializeNode = (node: import('web-tree-sitter').Node, maxDepth: number): 
     endPosition: node.endPosition,
   }
   if (maxDepth <= 0) return out
-  const children = node.namedChildren.filter(Boolean) as import('web-tree-sitter').Node[]
-  if (children.length) out.children = children.map((c) => serializeNode(c, maxDepth - 1))
+  const children = node.namedChildren
+  if (children.length) out.children = children.map((c: SyntaxNode) => serializeNode(c, maxDepth - 1))
   return out
 }
 
-const extractSymbols = (root: import('web-tree-sitter').Node, text: string): ExtractedSymbol[] => {
+const extractSymbols = (root: SyntaxNode, text: string): ExtractedSymbol[] => {
   const syms: ExtractedSymbol[] = []
-  const visit = (node: import('web-tree-sitter').Node) => {
+  const visit = (node: SyntaxNode) => {
     const t = node.type
     if (t === 'function_declaration' || t === 'method_definition' || t === 'arrow_function') {
       const nameNode = node.childForFieldName('name')
@@ -69,20 +70,37 @@ const extractSymbols = (root: import('web-tree-sitter').Node, text: string): Ext
   return syms
 }
 
-const api = {
-  parse: async (languageId: LanguageId, content: string) => {
-    const lang = await loadLanguage(languageId)
-    const parser = new Parser()
-    parser.setLanguage(lang)
-    const tree = parser.parse(content)
-    if (!tree) return { tree: { languageId, root: { type: 'error', startIndex: 0, endIndex: 0, startPosition: { row: 0, column: 0 }, endPosition: { row: 0, column: 0 } } }, symbols: [] }
-    const serialized: SerializedTree = {
-      languageId,
-      root: serializeNode(tree.rootNode, 6),
-    }
-    const symbols = extractSymbols(tree.rootNode, content)
-    return { tree: serialized, symbols }
-  },
+const post = (id: string, payload: any, error?: string) => {
+  const response: WorkerResponse = { id, payload, error }
+  self.postMessage(response)
 }
 
-expose(api)
+self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+  const { id, type, payload } = event.data
+  try {
+    if (type === 'PARSE') {
+      const { languageId, content } = payload
+      const lang = await loadLanguage(languageId)
+      const parser = new Parser()
+      parser.setLanguage(lang)
+      const tree = parser.parse(content)
+
+      if (!tree) {
+        post(id, {
+          tree: { languageId, root: { type: 'error', startIndex: 0, endIndex: 0, startPosition: { row: 0, column: 0 }, endPosition: { row: 0, column: 0 } } },
+          symbols: []
+        })
+        return
+      }
+
+      const serialized: SerializedTree = {
+        languageId,
+        root: serializeNode(tree.rootNode, 6),
+      }
+      const symbols = extractSymbols(tree.rootNode, content)
+      post(id, { tree: serialized, symbols })
+    }
+  } catch (e) {
+    post(id, null, String(e))
+  }
+}

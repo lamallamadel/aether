@@ -1,6 +1,7 @@
-import { Check, Cloud, Monitor, Settings, Shield, Type, X } from 'lucide-react'
+import { Check, Cloud, Monitor, Palette, Settings, Shield, Type, X } from 'lucide-react'
 import { useEffect } from 'react'
 import { useEditorStore } from '../state/editorStore'
+import { ThemedSelect } from './ThemedSelect'
 
 export function SettingsModal() {
   const {
@@ -14,6 +15,12 @@ export function SettingsModal() {
     toggleEditorWordWrap,
     aiMode,
     setAiMode,
+    editorTheme,
+    setEditorTheme,
+    editorFontFamily,
+    setEditorFontFamily,
+    ideThemeColor,
+    setIdeThemeColor,
   } = useEditorStore()
 
   useEffect(() => {
@@ -39,12 +46,12 @@ export function SettingsModal() {
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="w-[520px] max-w-[95vw] bg-[#1a1a1a] rounded-xl border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col"
+        className="w-[520px] max-w-[95vw] bg-[#1a1a1a] rounded-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#151515]">
           <div className="flex items-center gap-2 font-medium">
-            <Settings size={18} className="text-purple-400" />
+            <Settings size={18} style={{ color: 'rgb(var(--color-primary-400))' }} />
             <span>Settings</span>
           </div>
           <button type="button" onClick={() => setSettingsOpen(false)} className="text-gray-500 hover:text-white transition-colors">
@@ -52,9 +59,83 @@ export function SettingsModal() {
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
           <div className="space-y-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Appearance</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/5 rounded text-gray-400">
+                  <Palette size={16} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-200">Accent Color</div>
+                  <div className="text-xs text-gray-500">Controls the main accent color of the IDE.</div>
+                </div>
+              </div>
+              <ThemedSelect
+                ariaLabel="Select accent color"
+                value={ideThemeColor}
+                onChange={setIdeThemeColor}
+                options={[
+                  { value: 'purple', label: 'Purple' },
+                  { value: 'blue', label: 'Blue' },
+                  { value: 'green', label: 'Green' },
+                  { value: 'red', label: 'Red' },
+                  { value: 'teal', label: 'Teal' },
+                ]}
+              />
+            </div>
+
+            <div className="h-px bg-white/5" />
+
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Editor</h3>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/5 rounded text-gray-400">
+                  <Palette size={16} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-200">Theme</div>
+                  <div className="text-xs text-gray-500">Controls the editor color scheme.</div>
+                </div>
+              </div>
+              <ThemedSelect
+                ariaLabel="Select editor theme"
+                value={editorTheme}
+                onChange={setEditorTheme}
+                options={[
+                  { value: 'Aether', label: 'Aether' },
+                  { value: 'Sublime', label: 'Sublime' },
+                  { value: 'Monokai', label: 'Monokai' },
+                  { value: 'Nord', label: 'Nord' },
+                  { value: 'Solarized Light', label: 'Solarized Light' },
+                  { value: 'Solarized Dark', label: 'Solarized Dark' },
+                ]}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/5 rounded text-gray-400">
+                  <Type size={16} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-200">Font Family</div>
+                  <div className="text-xs text-gray-500">Controls the editor font family.</div>
+                </div>
+              </div>
+              <ThemedSelect
+                ariaLabel="Select editor font family"
+                value={editorFontFamily}
+                onChange={setEditorFontFamily}
+                options={[
+                  { value: 'JetBrains Mono', label: 'JetBrains Mono' },
+                  { value: 'Fira Code', label: 'Fira Code' },
+                  { value: 'monospace', label: 'Monospace' },
+                ]}
+              />
+            </div>
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -96,7 +177,7 @@ export function SettingsModal() {
                 </div>
               </div>
               <div
-                className={`w-10 h-6 rounded-full p-1 transition-colors ${editorMinimap ? 'bg-purple-600' : 'bg-white/10'}`}
+                style={{ backgroundColor: editorMinimap ? 'rgb(var(--color-primary-600))' : undefined }}
               >
                 <div
                   className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${editorMinimap ? 'translate-x-4' : 'translate-x-0'}`}
@@ -115,7 +196,7 @@ export function SettingsModal() {
                 </div>
               </div>
               <div
-                className={`w-10 h-6 rounded-full p-1 transition-colors ${editorWordWrap ? 'bg-purple-600' : 'bg-white/10'}`}
+                style={{ backgroundColor: editorWordWrap ? 'rgb(var(--color-primary-600))' : undefined }}
               >
                 <div
                   className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${editorWordWrap ? 'translate-x-4' : 'translate-x-0'}`}
@@ -142,7 +223,8 @@ export function SettingsModal() {
               <div className="flex items-center gap-1 bg-black/20 rounded p-1 border border-white/5">
                 <button
                   type="button"
-                  className={`px-2 py-1 rounded text-xs ${aiMode === 'cloud' ? 'bg-purple-600/20 text-purple-200 border border-purple-500/30' : 'text-gray-300 hover:bg-white/10'}`}
+                  className={`px-2 py-1 rounded text-xs`}
+                  style={aiMode === 'cloud' ? { backgroundColor: 'rgb(var(--color-primary-600) / 0.2)', color: 'rgb(var(--color-primary-200))', borderColor: 'rgb(var(--color-primary-500) / 0.3)' } : {}}
                   onClick={() => setAiMode('cloud')}
                 >
                   <span className="inline-flex items-center gap-1">
@@ -152,7 +234,8 @@ export function SettingsModal() {
                 </button>
                 <button
                   type="button"
-                  className={`px-2 py-1 rounded text-xs ${aiMode === 'local' ? 'bg-purple-600/20 text-purple-200 border border-purple-500/30' : 'text-gray-300 hover:bg-white/10'}`}
+                  className={`px-2 py-1 rounded text-xs`}
+                  style={aiMode === 'local' ? { backgroundColor: 'rgb(var(--color-primary-600) / 0.2)', color: 'rgb(var(--color-primary-200))', borderColor: 'rgb(var(--color-primary-500) / 0.3)' } : {}}
                   onClick={() => setAiMode('local')}
                 >
                   Local

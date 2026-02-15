@@ -1,4 +1,4 @@
-import { Bot, File, Menu, Search, Settings } from 'lucide-react'
+import { Layout, Layers, Sparkles, Scan, Sliders } from 'lucide-react'
 import { useEditorStore } from '../state/editorStore'
 
 export function ActivityBar() {
@@ -11,9 +11,10 @@ export function ActivityBar() {
         tabIndex={0}
         aria-label="Toggle Sidebar"
         onClick={toggleSidebar}
-        className="p-2 bg-purple-600/20 text-purple-400 rounded-lg activity-item"
+        style={{ backgroundColor: 'rgb(var(--color-primary-600) / 0.2)', color: 'rgb(var(--color-primary-400))' }}
+        className="p-2 rounded-lg activity-item"
       >
-        <Menu size={20} strokeWidth={1.5} />
+        <Layout size={20} strokeWidth={1.5} />
       </button>
       <div className="w-6 h-[1px] bg-white/10 my-1"></div>
       <button
@@ -23,7 +24,7 @@ export function ActivityBar() {
         onClick={toggleSidebar}
         className="p-2 text-white border-l-2 border-white activity-item"
       >
-        <File size={20} strokeWidth={1.5} />
+        <Layers size={20} strokeWidth={1.5} />
       </button>
       <button
         type="button"
@@ -32,7 +33,7 @@ export function ActivityBar() {
         onClick={() => setCommandPaletteOpen(true)}
         className="p-2 text-gray-500 hover:text-white transition-colors activity-item"
       >
-        <Search size={20} strokeWidth={1.5} />
+        <Scan size={20} strokeWidth={1.5} />
       </button>
       <button
         type="button"
@@ -41,7 +42,7 @@ export function ActivityBar() {
         onClick={toggleAiPanel}
         className="p-2 text-gray-500 hover:text-white transition-colors activity-item"
       >
-        <Bot size={20} strokeWidth={1.5} />
+        <Sparkles size={20} strokeWidth={1.5} />
       </button>
       <div className="flex-1"></div>
       <button
@@ -51,7 +52,7 @@ export function ActivityBar() {
         onClick={() => setSettingsOpen(true)}
         className="p-2 text-gray-500 hover:text-white transition-colors activity-item"
       >
-        <Settings size={20} strokeWidth={1.5} />
+        <Sliders size={20} strokeWidth={1.5} />
       </button>
     </div>
   )

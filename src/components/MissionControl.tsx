@@ -176,7 +176,10 @@ export function MissionControl() {
                 Reject
               </button>
               <button
-                className="flex items-center gap-2 text-xs px-3 py-2 rounded bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600"
+                style={{ backgroundColor: 'rgb(var(--color-primary-600))', '--tw-bg-opacity': '1' } as React.CSSProperties}
+                className="flex items-center gap-2 text-xs px-3 py-2 rounded text-white disabled:opacity-40"
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgb(var(--color-primary-500))')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgb(var(--color-primary-600))')}
                 type="button"
                 disabled={!selectedFileId}
                 onClick={() => {
