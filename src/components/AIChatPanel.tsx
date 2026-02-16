@@ -1,4 +1,4 @@
-import { CornerDownLeft, Maximize2, Sparkles, User, Bot } from 'lucide-react'
+import { AlertTriangle, Brain, CornerDownLeft, Maximize2, Sparkles, User, Bot } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useEditorStore } from '../state/editorStore'
 import { MarkdownRenderer } from './MarkdownRenderer'
@@ -7,7 +7,7 @@ import { graphragQuery } from '../services/graphrag/graphrag'
 type ChatMessage = { role: 'user' | 'ai'; text: string }
 
 export function AIChatPanel() {
-  const { aiPanelVisible, toggleAiPanel } = useEditorStore()
+  const { aiPanelVisible, toggleAiPanel, aiHealth } = useEditorStore()
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'ai', text: 'Hello! I am Aether AI. I can see your open files. How can I help you code today?' },
   ])
@@ -100,6 +100,29 @@ export function AIChatPanel() {
         </button>
       </div>
 
+      {aiHealth === 'degraded' && (
+        <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
+          <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
+          <div>
+            <div className="text-xs font-medium text-amber-300">Reduced Intelligence</div>
+            <div className="text-[10px] text-amber-400/70 mt-0.5">
+              Embedding model unavailable. Results use keyword matching only.
+            </div>
+          </div>
+        </div>
+      )}
+      {aiHealth === 'offline' && (
+        <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-2">
+          <Brain size={14} className="text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <div className="text-xs font-medium text-red-300">AI Offline</div>
+            <div className="text-[10px] text-red-400/70 mt-0.5">
+              Search is unavailable. Check your network connection.
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.map((msg, i) => (
           <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
@@ -132,7 +155,11 @@ export function AIChatPanel() {
                     >
                       <MarkdownRenderer content={msg.text} />
                     </div>
-                    {msg.role === 'ai' && <div className="mt-1 text-[10px] text-gray-600 uppercase">Context Aware</div>}
+                    {msg.role === 'ai' && (
+                      <div className="mt-1 text-[10px] uppercase" style={{ color: aiHealth === 'degraded' ? '#f59e0b' : aiHealth === 'offline' ? '#ef4444' : '#6b7280' }}>
+                        {aiHealth === 'degraded' ? 'Keyword Search' : aiHealth === 'offline' ? 'Offline' : 'Context Aware'}
+                      </div>
+                    )}
                 </div>
             </div>
           </div>

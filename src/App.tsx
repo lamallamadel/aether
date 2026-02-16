@@ -13,10 +13,11 @@ import { useEditorStore } from './state/editorStore'
 import { enableZeroEgress } from './services/security/networkGuard'
 import { startPerfMonitor } from './services/perf/perfMonitor'
 import { workerBridge } from './services/workers/WorkerBridge'
+import { vectorStore } from './services/db/VectorStore'
 import { THEME_COLORS } from './lib/theme'
 
 export default function App() {
-  const { setCommandPaletteOpen, toggleSidebar, toggleAiPanel, setSettingsOpen, aiMode, setPerf, ideThemeColor, setMissionControlOpen } =
+  const { setCommandPaletteOpen, toggleSidebar, toggleAiPanel, setSettingsOpen, aiMode, setPerf, setAiHealth, ideThemeColor, setMissionControlOpen } =
     useEditorStore()
 
   useEffect(() => {
@@ -94,6 +95,18 @@ export default function App() {
     const stop = startPerfMonitor((m) => setPerf(m))
     return () => stop()
   }, [setPerf])
+
+  useEffect(() => {
+    const unsubscribe = vectorStore.onHealthChange((status) => {
+      switch (status) {
+        case 'ready': setAiHealth('full'); break
+        case 'degraded': setAiHealth('degraded'); break
+        case 'error': setAiHealth('offline'); break
+        case 'loading': setAiHealth('loading'); break
+      }
+    })
+    return unsubscribe
+  }, [setAiHealth])
 
   useEffect(() => {
     const styleId = 'dynamic-theme-colors'

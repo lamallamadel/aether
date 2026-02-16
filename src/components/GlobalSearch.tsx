@@ -1,4 +1,4 @@
-import { Search, X, Sparkles, FileCode } from 'lucide-react'
+import { AlertTriangle, Search, X, Sparkles, FileCode } from 'lucide-react'
 import { ThemedSelect } from './ThemedSelect'
 import { workerBridge } from '../services/workers/WorkerBridge'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -60,7 +60,7 @@ const HighlightMatch = ({ text, query, matchCase, matchWholeWord }: { text: stri
 }
 
 export function GlobalSearch() {
-  const { globalSearchOpen, setGlobalSearchOpen, files, openFiles, openFile, perf } = useEditorStore()
+  const { globalSearchOpen, setGlobalSearchOpen, files, openFiles, openFile, perf, aiHealth } = useEditorStore()
   const [mode, setMode] = useState<SearchMode>('content')
   const [scope, setScope] = useState<SearchScope>('all')
   const [query, setQuery] = useState('')
@@ -207,8 +207,14 @@ export function GlobalSearch() {
             {mode === 'knowledge' ? <Sparkles size={14} className="text-emerald-400" /> : <Search size={14} className="text-gray-500" />}
             <span>{mode === 'knowledge' ? 'Aether Intelligence (RAG)' : 'Global Search'}</span>
             {mode === 'knowledge' && (
-               <span className="ml-4 text-[10px] text-gray-600 font-normal normal-case border-l border-white/10 pl-2">
-                  Latency: {Math.max(12, perf.longTaskMaxMs).toFixed(0)}ms
+               <span className="ml-4 text-[10px] font-normal normal-case border-l border-white/10 pl-2 flex items-center gap-1">
+                  {aiHealth === 'degraded' ? (
+                    <><AlertTriangle size={10} className="text-amber-400" /><span className="text-amber-400">Keyword Mode</span></>
+                  ) : aiHealth === 'offline' ? (
+                    <span className="text-red-400">Offline</span>
+                  ) : (
+                    <span className="text-gray-600">Latency: {Math.max(12, perf.longTaskMaxMs).toFixed(0)}ms</span>
+                  )}
                </span>
             )}
           </div>

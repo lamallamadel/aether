@@ -4,6 +4,8 @@ import { INITIAL_FILES } from '../domain/fileNode'
 import type { ExtractedSymbol, SerializedTree } from '../services/syntax/syntaxTypes'
 import type { PerfMetrics } from '../services/perf/perfMonitor'
 
+export type AiHealthStatus = 'full' | 'degraded' | 'offline' | 'loading'
+
 export interface EditorState {
   files: FileNode[]
   activeFileId: string | null
@@ -15,6 +17,7 @@ export interface EditorState {
   settingsOpen: boolean
   missionControlOpen: boolean
   aiMode: 'cloud' | 'local'
+  aiHealth: AiHealthStatus
   perf: PerfMetrics
   worktreeChanges: Record<string, { fileId: string; originalContent: string; proposedContent: string }>
   editorFontSizePx: number
@@ -40,6 +43,7 @@ export interface EditorState {
   setSettingsOpen: (open: boolean) => void
   setMissionControlOpen: (open: boolean) => void
   setAiMode: (mode: 'cloud' | 'local') => void
+  setAiHealth: (status: AiHealthStatus) => void
   setPerf: (metrics: PerfMetrics) => void
   getFileContent: (fileId: string) => string
   findNode: (id: string) => FileNode | null
@@ -105,6 +109,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   settingsOpen: false,
   missionControlOpen: false,
   aiMode: 'cloud',
+  aiHealth: 'loading',
   perf: { longTaskCount: 0, longTaskMaxMs: 0, slowFrameCount: 0, slowFrameMaxMs: 0 },
   worktreeChanges: {},
   editorFontSizePx: 14,
@@ -154,6 +159,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setMissionControlOpen: (open) => set({ missionControlOpen: open }),
   setAiMode: (mode) => set({ aiMode: mode }),
+  setAiHealth: (status) => set({ aiHealth: status }),
   setPerf: (metrics) => set({ perf: metrics }),
 
   setEditorFontSizePx: (value) => set({ editorFontSizePx: value }),

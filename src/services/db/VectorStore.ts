@@ -62,14 +62,34 @@ class PipelineSingleton {
     }
 }
 
+export type VectorStoreHealth = 'ready' | 'degraded' | 'loading' | 'error'
+
+type HealthListener = (status: VectorStoreHealth) => void
+
 export class VectorStore {
     private provider: EmbeddingProvider
+    private healthListeners: HealthListener[] = []
+    private _health: VectorStoreHealth = 'loading'
 
     constructor(provider: EmbeddingProvider = transformersEmbeddingProvider) {
         this.provider = provider
     }
 
+    get health(): VectorStoreHealth { return this._health }
+
+    onHealthChange(listener: HealthListener): () => void {
+        this.healthListeners.push(listener)
+        return () => { this.healthListeners = this.healthListeners.filter(l => l !== listener) }
+    }
+
+    private setHealth(status: VectorStoreHealth) {
+        if (this._health === status) return
+        this._health = status
+        for (const l of this.healthListeners) l(status)
+    }
+
     async persistVectors(fileId: string, chunks: { content: string; startLine: number; endLine: number }[]) {
+        this.setHealth('loading')
         // Fetch existing vectors once (not per-chunk) to avoid N+1 DB queries
         let existingByHash: Map<string, DBVector>
         try {
@@ -79,6 +99,7 @@ export class VectorStore {
             existingByHash = new Map()
         }
 
+        let hadEmbedFailure = false
         const vectors: DBVector[] = []
         for (const chunk of chunks) {
             const hash = this.simpleHash(chunk.content)
@@ -100,8 +121,7 @@ export class VectorStore {
                     hash
                 })
             } catch (err) {
-                // Embedding failed (network down, model not loaded, etc.)
-                // Persist the chunk without embedding so keyword search still works
+                hadEmbedFailure = true
                 console.warn(`VectorStore: embedding failed for ${id}, storing without vector`, err)
                 vectors.push({
                     id,
@@ -114,10 +134,18 @@ export class VectorStore {
             }
         }
         await db.upsertVectors(vectors)
+        this.setHealth(hadEmbedFailure ? 'degraded' : 'ready')
     }
 
     async search(query: string, limit = 5): Promise<(DBVector & { score: number })[]> {
-        const queryVector = await this.provider.embed(query)
+        let queryVector: Float32Array
+        try {
+            queryVector = await this.provider.embed(query)
+        } catch {
+            this.setHealth('degraded')
+            return []
+        }
+        this.setHealth('ready')
         const allVectors = await db.getAllVectors()
 
         const scored = allVectors

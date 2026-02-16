@@ -1,10 +1,19 @@
-import { Bot, Split, X, Ghost } from 'lucide-react'
+import { Bot, Brain, Split, X } from 'lucide-react'
 import { useEditorStore } from '../state/editorStore'
+import type { AiHealthStatus } from '../state/editorStore'
+
+const AI_HEALTH_CONFIG: Record<AiHealthStatus, { color: string; label: string; pulse: boolean }> = {
+  full:     { color: '#22c55e', label: 'AI Semantic',      pulse: false },
+  degraded: { color: '#f59e0b', label: 'AI Keywords Only', pulse: true },
+  offline:  { color: '#ef4444', label: 'AI Offline',       pulse: false },
+  loading:  { color: '#6b7280', label: 'AI Loading...',    pulse: true },
+}
 
 export function StatusBar() {
-  const { editorFontSizePx, perf, activeFileId } = useEditorStore()
+  const { editorFontSizePx, perf, activeFileId, aiHealth } = useEditorStore()
 
   const languageLabel = activeFileId ? getLanguageLabel(activeFileId) : 'Plain Text'
+  const healthConfig = AI_HEALTH_CONFIG[aiHealth]
 
   return (
     <div className="h-7 text-primary-100 font-semibold flex items-center justify-between px-4 text-xs select-none z-10" style={{ backgroundColor: 'rgb(var(--color-primary-600))' }}>
@@ -25,17 +34,31 @@ export function StatusBar() {
         <span className="hover:bg-primary-500/20 px-1.5 py-0.5 rounded cursor-pointer text-primary-100">Size: {editorFontSizePx}px</span>
         <span className="hover:bg-primary-500/20 px-1.5 py-0.5 rounded cursor-pointer text-primary-100">UTF-8</span>
         <span className="hover:bg-primary-500/20 px-1.5 py-0.5 rounded cursor-pointer text-primary-100">{languageLabel}</span>
-        <span className="flex items-center gap-1 hover:bg-primary-500/20 px-1.5 py-0.5 rounded cursor-pointer text-primary-100">
-          <Ghost size={12} />
-          <span>Aether Ghost Active</span>
+        <span
+          className="flex items-center gap-1 hover:bg-primary-500/20 px-1.5 py-0.5 rounded cursor-pointer"
+          title={getHealthTooltip(aiHealth)}
+        >
+          <span className={healthConfig.pulse ? 'animate-pulse' : ''}>
+            <Brain size={12} style={{ color: healthConfig.color }} />
+          </span>
+          <span style={{ color: healthConfig.color }}>{healthConfig.label}</span>
         </span>
         <span className="flex items-center gap-1 hover:bg-primary-500/20 px-1.5 py-0.5 rounded cursor-pointer text-primary-100">
           <Bot size={12} />
-          <span>Aether Copilot Ready</span>
+          <span>Copilot</span>
         </span>
       </div>
     </div>
   )
+}
+
+function getHealthTooltip(status: AiHealthStatus): string {
+  switch (status) {
+    case 'full': return 'AI is using semantic vector search (full intelligence)'
+    case 'degraded': return 'Embedding model unavailable. Falling back to keyword search.'
+    case 'offline': return 'AI search is offline. Check network connection.'
+    case 'loading': return 'Loading embedding model...'
+  }
 }
 
 function getLanguageLabel(fileId: string): string {
