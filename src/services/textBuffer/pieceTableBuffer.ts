@@ -74,7 +74,14 @@ const insertAt = (pieces: Piece[], offset: number, insertPiece: Piece): Piece[] 
   return normalizePieces(out)
 }
 
-const COMPACTION_THRESHOLD = 500
+// Compact based on actual piece fragmentation, not op count.
+// normalizePieces already merges adjacent same-source pieces, so piece count
+// only grows when edits create non-adjacent fragments. A threshold on piece
+// count directly measures fragmentation instead of using ops as a proxy.
+const PIECE_COUNT_COMPACTION_THRESHOLD = 200
+// Also compact if the add buffer grows too large relative to useful text,
+// which means lots of dead/overwritten text is being retained.
+const ADD_BUFFER_WASTE_RATIO = 3
 
 export class PieceTableBuffer implements TextBuffer {
   readonly length: number
@@ -82,14 +89,12 @@ export class PieceTableBuffer implements TextBuffer {
   private readonly original: string
   private readonly add: string
   private readonly pieces: Piece[]
-  private readonly opsSinceCompaction: number
 
-  constructor(original: string, add: string, pieces: Piece[], opsSinceCompaction = 0) {
+  constructor(original: string, add: string, pieces: Piece[]) {
     this.original = original
     this.add = add
     this.pieces = normalizePieces(pieces)
     this.length = piecesTextLength(this.pieces)
-    this.opsSinceCompaction = opsSinceCompaction
   }
 
   static fromText(text: string): PieceTableBuffer {
@@ -105,10 +110,26 @@ export class PieceTableBuffer implements TextBuffer {
     return out
   }
 
-  private maybeCompact(buffer: PieceTableBuffer): PieceTableBuffer {
-    if (buffer.opsSinceCompaction < COMPACTION_THRESHOLD) return buffer
-    const text = buffer.getText()
-    return PieceTableBuffer.fromText(text)
+  private needsCompaction(): boolean {
+    // High piece fragmentation
+    if (this.pieces.length >= PIECE_COUNT_COMPACTION_THRESHOLD) return true
+    // Add buffer has too much dead text (wasted memory)
+    if (this.add.length > 0 && this.length > 0 && this.add.length > this.length * ADD_BUFFER_WASTE_RATIO) return true
+    return false
+  }
+
+  private maybeCompact(): PieceTableBuffer {
+    if (!this.needsCompaction()) return this
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0
+    const text = this.getText()
+    const compacted = PieceTableBuffer.fromText(text)
+    if (typeof performance !== 'undefined') {
+      const dt = performance.now() - t0
+      if (dt > 4) {
+        console.warn(`PieceTableBuffer: compaction took ${dt.toFixed(1)}ms (pieces: ${this.pieces.length}, length: ${this.length})`)
+      }
+    }
+    return compacted
   }
 
   insert(offset: number, text: string): TextBuffer {
@@ -117,8 +138,8 @@ export class PieceTableBuffer implements TextBuffer {
     const addStart = this.add.length
     const nextAdd = this.add + text
     const nextPieces = insertAt(this.pieces, safeOffset, { source: 'add', start: addStart, length: text.length })
-    const next = new PieceTableBuffer(this.original, nextAdd, nextPieces, this.opsSinceCompaction + 1)
-    return this.maybeCompact(next)
+    const next = new PieceTableBuffer(this.original, nextAdd, nextPieces)
+    return next.maybeCompact()
   }
 
   delete(startOffset: number, endOffsetExclusive: number): TextBuffer {
@@ -127,7 +148,7 @@ export class PieceTableBuffer implements TextBuffer {
     assertRange(start, end)
     if (start === end) return this
     const nextPieces = deleteRange(this.pieces, start, end)
-    const next = new PieceTableBuffer(this.original, this.add, nextPieces, this.opsSinceCompaction + 1)
-    return this.maybeCompact(next)
+    const next = new PieceTableBuffer(this.original, this.add, nextPieces)
+    return next.maybeCompact()
   }
 }

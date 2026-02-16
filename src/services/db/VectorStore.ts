@@ -33,16 +33,32 @@ class PipelineSingleton {
     static task = 'feature-extraction'
     static model = 'Xenova/all-MiniLM-L6-v2'
     private static loading: Promise<any> | null = null
+    private static instance: any = null
 
     static async getInstance(progress_callback?: Function) {
+        // Already loaded — fast path
+        if (this.instance) return this.instance
+
         if (!this.loading) {
             this.loading = pipeline(this.task as any, this.model, { progress_callback })
+                .then((inst) => {
+                    this.instance = inst
+                    return inst
+                })
                 .catch((err) => {
+                    // Reset so next call retries instead of returning a rejected promise
                     this.loading = null
+                    this.instance = null
                     throw err
                 })
         }
         return this.loading
+    }
+
+    /** Force-reset the singleton (e.g. after network recovery) */
+    static reset() {
+        this.loading = null
+        this.instance = null
     }
 }
 
@@ -54,26 +70,48 @@ export class VectorStore {
     }
 
     async persistVectors(fileId: string, chunks: { content: string; startLine: number; endLine: number }[]) {
+        // Fetch existing vectors once (not per-chunk) to avoid N+1 DB queries
+        let existingByHash: Map<string, DBVector>
+        try {
+            const existing = await db.getVectorsForFile(fileId)
+            existingByHash = new Map(existing.map(v => [v.hash, v]))
+        } catch {
+            existingByHash = new Map()
+        }
+
         const vectors: DBVector[] = []
         for (const chunk of chunks) {
             const hash = this.simpleHash(chunk.content)
             const id = `${fileId}:${chunk.startLine}-${chunk.endLine}`
-            const existing = await db.getVectorsForFile(fileId)
-            const cached = existing.find(v => v.hash === hash)
+            const cached = existingByHash.get(hash)
             if (cached) {
                 vectors.push({ ...cached, id, startLine: chunk.startLine, endLine: chunk.endLine })
                 continue
             }
-            const embedding = await this.provider.embed(chunk.content)
-            vectors.push({
-                id,
-                fileId,
-                content: chunk.content,
-                startLine: chunk.startLine,
-                endLine: chunk.endLine,
-                embedding,
-                hash
-            })
+            try {
+                const embedding = await this.provider.embed(chunk.content)
+                vectors.push({
+                    id,
+                    fileId,
+                    content: chunk.content,
+                    startLine: chunk.startLine,
+                    endLine: chunk.endLine,
+                    embedding,
+                    hash
+                })
+            } catch (err) {
+                // Embedding failed (network down, model not loaded, etc.)
+                // Persist the chunk without embedding so keyword search still works
+                console.warn(`VectorStore: embedding failed for ${id}, storing without vector`, err)
+                vectors.push({
+                    id,
+                    fileId,
+                    content: chunk.content,
+                    startLine: chunk.startLine,
+                    endLine: chunk.endLine,
+                    hash
+                })
+            }
         }
         await db.upsertVectors(vectors)
     }

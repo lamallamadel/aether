@@ -121,7 +121,21 @@ function injectCSPMeta() {
   const meta = document.createElement('meta')
   meta.id = CSP_META_ID
   meta.httpEquiv = 'Content-Security-Policy'
-  meta.content = `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; worker-src 'self' blob:;`
+  // Defense-in-depth CSP for zero-egress mode:
+  // - worker-src: blob: needed for Vite-bundled inline workers
+  // - font-src: blob: needed for dynamically loaded @font-face
+  // - style-src: blob: needed for dynamically injected stylesheets
+  // - connect-src: 'self' blocks all external XHR/fetch (model downloads, etc.)
+  // - script-src: blob: needed for Web Worker scripts bundled as blob URLs
+  meta.content = [
+    `default-src 'self'`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:`,
+    `style-src 'self' 'unsafe-inline' blob:`,
+    `img-src 'self' data: blob:`,
+    `connect-src 'self'`,
+    `font-src 'self' data: blob:`,
+    `worker-src 'self' blob:`,
+  ].join('; ')
   document.head.appendChild(meta)
 }
 
