@@ -65,26 +65,34 @@ export const ingestFile = async (fileId: string, content: string, symbols: Extra
   await upsertChunks(chunks)
 
   // 2. Persist to Vector Store — convert char indices to line numbers
+  // persistVectors now handles embedding failures gracefully (stores without vector)
   const vectorChunks = chunks.map(c => ({
     content: c.text,
     startLine: charOffsetToLine(content, c.startIndex),
     endLine: charOffsetToLine(content, c.endIndex)
   }))
-  await vectorStore.persistVectors(fileId, vectorChunks)
+  try {
+    await vectorStore.persistVectors(fileId, vectorChunks)
+  } catch (err) {
+    // Ingestion failure must not crash the editor — log and continue
+    console.error('GraphRAG: vector ingestion failed, keyword search still available', err)
+  }
 }
 
 export const graphragQuery = async (query: string, topK = 20) => {
   if (typeof indexedDB === 'undefined') return []
 
   // Parallel Search: Vector + Keyword with Timeout
+  // Attaches a .catch to the original promise to prevent unhandled rejection
+  // after the timeout winner resolves. Without this, if the real promise
+  // rejects AFTER the timeout fires, it produces an UnhandledPromiseRejection.
   const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    // Attach a no-op catch to prevent unhandled rejection on the loser
+    const safePromise = promise.catch(() => fallback)
     return Promise.race([
-      promise,
-      new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
-    ]).catch(e => {
-      console.error(`Operation timed out or failed: ${e}`)
-      return fallback
-    })
+      safePromise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+    ]).catch(() => fallback)
   }
 
   const [vectorResults, allChunks] = await Promise.all([
